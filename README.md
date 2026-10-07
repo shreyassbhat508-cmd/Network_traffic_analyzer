@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Network Traffic Analyzer
+
+A Python-based network traffic analysis tool that analyzes PCAP and PCAPNG files to visualize network activity and identify potentially suspicious traffic patterns.
+
+## Features
+
+- Analyze packet capture files (PCAP/PCAPNG).
+- Visualize network protocol distribution.
+- Identify top source and destination IP addresses.
+- Analyze packet size distribution.
+- Detect potential anomalies, such as an IP address accessing 100 or more distinct ports.
+- Display analysis results through an interactive dashboard.
+
+## Technology Stack
+
+- Python
+- Streamlit
+- Scapy
+- Pandas
+- Plotly
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Python 3.10 or newer
+- pip
+
+### Installation
+
+Clone the repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/shreyassbhat508-cmd/Network_traffic_analyzer.git
+cd Network_traffic_analyzer
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Install dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pip install -r requirements.txt
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Run the Application
 
-## Learn More
+```bash
+streamlit run app.py
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Launch the application.
+2. Upload a PCAP or PCAPNG file.
+3. Analyze the captured network traffic.
+4. Explore protocol statistics, IP addresses, packet sizes, and anomaly alerts.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Disclaimer
 
-## Deploy on Vercel
+This project is intended for educational purposes and authorized network traffic analysis. Anomaly alerts indicate potentially suspicious patterns and do not independently confirm malicious activity.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contributors
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Developed as a hackathon project.
