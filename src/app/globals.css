@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-background: hsl(230, 20%, 8%);
+  --color-foreground: hsl(0, 0%, 98%);
+  --color-card: hsl(230, 15%, 12%);
+  --color-card-foreground: hsl(0, 0%, 98%);
+  --color-popover: hsl(230, 20%, 10%);
+  --color-popover-foreground: hsl(0, 0%, 98%);
+  --color-primary: hsl(210, 100%, 60%);
+  --color-primary-foreground: hsl(0, 0%, 100%);
+  --color-secondary: hsl(230, 15%, 15%);
+  --color-secondary-foreground: hsl(0, 0%, 98%);
+  --color-muted: hsl(230, 10%, 15%);
+  --color-muted-foreground: hsl(230, 10%, 60%);
+  --color-accent: hsl(210, 100%, 60%);
+  --color-accent-foreground: hsl(0, 0%, 100%);
+  --color-destructive: hsl(0, 80%, 60%);
+  --color-destructive-foreground: hsl(0, 0%, 98%);
+  --color-border: hsl(230, 15%, 18%);
+  --color-input: hsl(230, 15%, 18%);
+  --color-ring: hsl(210, 100%, 60%);
+
+  --radius-sm: calc(0.5rem - 4px);
+  --radius-md: calc(0.5rem - 2px);
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+}
+
+@layer base {
+  :root {
+    --background: 230 20% 8%;
+    --foreground: 0 0% 98%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer utilities {
+  .glass-nav {
+    background-color: rgba(20, 22, 30, 0.5);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-xl);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 24px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  /* Atmospheric gradients */
+  .bg-glow-blue {
+    background: radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.12) 0%, transparent 60%);
+  }
+  .bg-glow-cyan {
+    background: radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.08) 0%, transparent 50%);
+  }
+  .tech-grid {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .mask-radial-fade {
+    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  }
+}
+
+/* Workspace-only product theme; entry screens keep their original styling. */
+.workspace {
+  --color-background: #0b0e12;
+  --color-foreground: #e7edf3;
+  --color-card: #131820;
+  --color-card-foreground: #e7edf3;
+  --color-popover: #151b23;
+  --color-popover-foreground: #e7edf3;
+  --color-primary: #48c8ed;
+  --color-primary-foreground: #071116;
+  --color-secondary: #1b232d;
+  --color-secondary-foreground: #e7edf3;
+  --color-muted: #1a2129;
+  --color-muted-foreground: #8e9aa8;
+  --color-accent: #48c8ed;
+  --color-accent-foreground: #071116;
+  --color-destructive: #ef7568;
+  --color-border: rgba(199, 214, 228, 0.11);
+  --color-input: rgba(199, 214, 228, 0.14);
+  --color-ring: #48c8ed;
+  background: #0b0e12;
+  color: #e7edf3;
+  font-family: var(--font-sans);
+}
+
+.workspace .glass-panel {
+  background: #131820;
+  border: 1px solid rgba(199, 214, 228, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.workspace .glass-nav {
+  background: #151b23;
+  border: 1px solid rgba(199, 214, 228, 0.1);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.workspace-backdrop {
+  background:
+    radial-gradient(ellipse at 52% 42%, rgba(25, 91, 121, 0.08), transparent 50%),
+    linear-gradient(180deg, #0b0e12 0%, #0c1015 100%);
+}
+
+.workspace-grid {
+  background-image:
+    linear-gradient(rgba(210, 225, 240, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210, 225, 240, 0.018) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), transparent 75%);
+}
+
+.workspace :is(button, a, input, select):focus-visible {
+  outline: 2px solid #48c8ed;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace *, .workspace *::before, .workspace *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.workspace[data-reduced-motion="true"] *,
+.workspace[data-reduced-motion="true"] *::before,
+.workspace[data-reduced-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
