@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import inspect
 import os
 from pathlib import Path
 import struct
@@ -22,6 +23,7 @@ from scapy.packet import Packet
 from scapy.utils import PcapNgWriter, PcapWriter
 
 from analyzer.parser import CANONICAL_COLUMNS, parse_capture_bytes
+from analyzer.contracts import MAX_PACKETS, PACKET_COLUMNS
 
 ETH_KWARGS = {"src": "00:11:22:33:44:55", "dst": "66:77:88:99:aa:bb"}
 
@@ -59,6 +61,7 @@ def test_canonical_dataframe_columns_and_dtypes_populated():
     df, meta = parse_capture_bytes(pcap_data, "test.pcap")
 
     assert list(df.columns) == CANONICAL_COLUMNS
+    assert list(df.columns) == PACKET_COLUMNS
     assert df["timestamp"].dtype == "datetime64[ns, UTC]"
     assert df["src_ip"].dtype == "object"
     assert df["dst_ip"].dtype == "object"
@@ -76,6 +79,7 @@ def test_canonical_dataframe_columns_and_dtypes_empty():
     df, meta = parse_capture_bytes(b"", "empty.pcap")
 
     assert list(df.columns) == CANONICAL_COLUMNS
+    assert list(df.columns) == PACKET_COLUMNS
     assert df["timestamp"].dtype == "datetime64[ns, UTC]"
     assert df["src_ip"].dtype == "object"
     assert df["dst_ip"].dtype == "object"
@@ -177,7 +181,7 @@ def test_icmp_ipv4_parsing():
     df, _ = parse_capture_bytes(data, "icmp.pcap")
 
     assert df.loc[0, "protocol"] == "ICMP"
-    assert df.loc[0, "transport"] is None
+    assert df.loc[0, "transport"] == "ICMP"
     assert pd.isna(df.loc[0, "src_port"])
     assert pd.isna(df.loc[0, "dst_port"])
     assert df.loc[0, "tcp_flags"] is None
@@ -190,7 +194,7 @@ def test_icmpv6_parsing():
     df, _ = parse_capture_bytes(data, "icmpv6.pcap")
 
     assert df.loc[0, "protocol"] == "ICMP"
-    assert df.loc[0, "transport"] is None
+    assert df.loc[0, "transport"] == "ICMP"
     assert pd.isna(df.loc[0, "src_port"])
     assert pd.isna(df.loc[0, "dst_port"])
     assert df.loc[0, "ip_version"] == 6
@@ -246,7 +250,7 @@ def test_non_ip_packet_parsing():
     assert pd.isna(df.loc[0, "dst_port"])
     assert pd.isna(df.loc[0, "ip_version"])
     assert df.loc[0, "protocol"] == "OTHER"
-    assert df.loc[0, "transport"] is None
+    assert df.loc[0, "transport"] == "OTHER"
     assert df.loc[0, "tcp_flags"] is None
     assert df.loc[0, "dns_query"] is None
 
@@ -297,3 +301,43 @@ def test_max_packets_truncation():
     assert meta["parsed_packets"] == 4
     assert meta["truncated"] is True
     assert any("max_packets limit of 4" in w for w in meta["warnings"])
+
+
+def test_frozen_parser_signature_and_metadata_keys():
+    signature = inspect.signature(parse_capture_bytes)
+    assert list(signature.parameters) == ["data", "filename", "max_packets"]
+    assert signature.parameters["max_packets"].kind == inspect.Parameter.KEYWORD_ONLY
+    assert signature.parameters["max_packets"].default == MAX_PACKETS
+    for data in (b"", make_pcap_bytes([Ether(**ETH_KWARGS) / IP() / TCP()])):
+        _, metadata = parse_capture_bytes(data, "contract.pcap")
+        assert set(metadata) == {
+            "filename", "file_size_bytes", "format", "parsed_packets", "truncated", "warnings",
+        }
+
+
+@pytest.mark.parametrize("tail", [b"\x00", struct.pack("<IIII", 1000, 0, 40, 40) + b"\x00" * 14])
+def test_incomplete_pcap_records_raise_value_error(tail):
+    header = struct.pack("<IHHIIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)
+    with pytest.raises(ValueError, match="Corrupt.*incomplete PCAP"):
+        parse_capture_bytes(header + tail, "incomplete.pcap")
+
+
+@pytest.mark.parametrize("damage", ["short_body", "extra_header", "bad_trailer"])
+def test_incomplete_or_invalid_pcapng_blocks_raise_value_error(damage):
+    data = make_pcapng_bytes([Ether(**ETH_KWARGS) / IP() / UDP()])
+    if damage == "short_body":
+        data = data[:-5]
+    elif damage == "extra_header":
+        data += b"\x00"
+    else:
+        data = data[:-4] + b"\x00\x00\x00\x00"
+    with pytest.raises(ValueError, match="Corrupt.*PCAPNG"):
+        parse_capture_bytes(data, "incomplete.pcapng")
+
+
+def test_exact_packet_limit_is_not_truncation():
+    data = make_pcap_bytes([Ether(**ETH_KWARGS) / IP() / TCP()])
+    packets, metadata = parse_capture_bytes(data, "exact.pcap", max_packets=1)
+    assert len(packets) == 1
+    assert metadata["truncated"] is False
+    assert metadata["warnings"] == []

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 import sys
 
@@ -52,7 +53,7 @@ def sample_packets_df() -> pd.DataFrame:
             "src_port": pd.Series([53000, 53001, 80, 443, None], dtype="Int64"),
             "dst_port": pd.Series([53, 53, 54321, 54322, None], dtype="Int64"),
             "protocol": pd.Series(["DNS", "DNS", "TCP", "UDP", "OTHER"], dtype="object"),
-            "transport": pd.Series(["UDP", "UDP", "TCP", "UDP", None], dtype="object"),
+            "transport": pd.Series(["UDP", "UDP", "TCP", "UDP", "OTHER"], dtype="object"),
             "length": pd.Series([100, 200, 300, 400, 50], dtype="int64"),
             "tcp_flags": pd.Series([None, None, "PA", None, None], dtype="object"),
             "ip_version": pd.Series([4, 4, 4, 4, None], dtype="Int64"),
@@ -224,15 +225,32 @@ def test_timeline_statistics(sample_packets_df):
     assert timeline[2]["bytes"] == 50
 
 
-def test_top_talkers_custom_limit():
-    rows = [
-        {"src_ip": f"10.0.0.{i}", "dst_ip": f"20.0.0.{i}", "length": 100}
-        for i in range(20)
-    ]
-    df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(["2026-10-07T00:00:00Z"] * 20, utc=True)
-    df["protocol"] = "TCP"
+def test_frozen_statistics_signature_and_keys(sample_packets_df, empty_packets_df):
+    assert list(inspect.signature(calculate_statistics).parameters) == ["packets"]
+    for packets in (sample_packets_df, empty_packets_df):
+        stats = calculate_statistics(packets)
+        assert set(stats["summary"]) == {
+            "total_packets", "total_bytes", "average_packet_size", "min_packet_size",
+            "max_packet_size", "unique_sources", "unique_destinations",
+        }
+        assert set(stats["packet_sizes"]) == {"min", "max", "mean", "median", "p95"}
+        for talker in stats["top_sources"] + stats["top_destinations"]:
+            assert set(talker) == {"ip", "packets", "bytes"}
+            assert talker["ip"] is not None
+        for bucket in stats["timeline"]:
+            assert set(bucket) == {"timestamp", "packets", "bytes"}
 
-    stats = calculate_statistics(df, top_n=5)
-    assert len(stats["top_sources"]) == 5
-    assert len(stats["top_destinations"]) == 5
+
+@pytest.mark.parametrize("duration,bucket_seconds", [(120, 1), (121, 5), (1800, 5), (1801, 60)])
+def test_timeline_bucket_duration_boundaries(sample_packets_df, duration, bucket_seconds):
+    packets = sample_packets_df.iloc[[0, 1]].copy()
+    start = pd.Timestamp("2026-10-07T10:00:01Z")
+    end = start + pd.Timedelta(seconds=duration)
+    packets["timestamp"] = pd.Series([start, end], index=packets.index, dtype="datetime64[ns, UTC]")
+    timeline = calculate_statistics(packets)["timeline"]
+    assert [bucket["timestamp"] for bucket in timeline] == [
+        timestamp.floor(f"{bucket_seconds}s").strftime("%Y-%m-%dT%H:%M:%SZ")
+        for timestamp in (start, end)
+    ]
+    assert sum(bucket["packets"] for bucket in timeline) == 2
+    assert sum(bucket["bytes"] for bucket in timeline) == 300

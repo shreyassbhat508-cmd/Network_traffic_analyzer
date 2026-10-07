@@ -11,17 +11,13 @@ import pandas as pd
 ORDERED_PROTOCOLS = ["TCP", "UDP", "ICMP", "DNS", "OTHER"]
 
 
-def calculate_statistics(
-    packets: pd.DataFrame, *, top_n: int = 10
-) -> dict[str, object]:
+def calculate_statistics(packets: pd.DataFrame) -> dict[str, object]:
     """Calculate aggregate network statistics from a packets DataFrame.
 
     Parameters
     ----------
     packets : pd.DataFrame
         Canonical DataFrame containing parsed packet rows.
-    top_n : int, default 10
-        Maximum number of top sources/destinations to return.
 
     Returns
     -------
@@ -126,7 +122,7 @@ def calculate_statistics(
                 src_valid.groupby("src_ip", as_index=False)
                 .agg(packets=("length", "count"), bytes=("length", "sum"))
                 .sort_values(by=["packets", "bytes"], ascending=[False, False])
-                .head(top_n)
+                .head(10)
             )
             top_sources = [
                 {
@@ -146,7 +142,7 @@ def calculate_statistics(
                 dst_valid.groupby("dst_ip", as_index=False)
                 .agg(packets=("length", "count"), bytes=("length", "sum"))
                 .sort_values(by=["packets", "bytes"], ascending=[False, False])
-                .head(top_n)
+                .head(10)
             )
             top_destinations = [
                 {
@@ -157,12 +153,14 @@ def calculate_statistics(
                 for _, row in dst_grouped.iterrows()
             ]
 
-    # Timeline (1-second intervals, ISO8601 UTC formatted strings)
+    # Timeline buckets depend on the full capture duration.
     timeline: list[dict[str, object]] = []
     if "timestamp" in packets:
         valid_ts = packets.dropna(subset=["timestamp"]).copy()
         if not valid_ts.empty:
-            valid_ts["bucket"] = valid_ts["timestamp"].dt.floor("1s")
+            duration = (valid_ts["timestamp"].max() - valid_ts["timestamp"].min()).total_seconds()
+            bucket_seconds = 1 if duration <= 120 else 5 if duration <= 1800 else 60
+            valid_ts["bucket"] = valid_ts["timestamp"].dt.floor(f"{bucket_seconds}s")
             timeline_grouped = (
                 valid_ts.groupby("bucket", as_index=False)
                 .agg(packets=("length", "count"), bytes=("length", "sum"))

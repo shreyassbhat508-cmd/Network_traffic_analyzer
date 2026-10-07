@@ -17,6 +17,8 @@ from scapy.layers.inet import ICMP, IP, TCP, UDP
 import scapy.layers.inet6 as inet6
 from scapy.utils import PcapNgReader, PcapReader
 
+from analyzer.contracts import MAX_PACKETS
+
 CANONICAL_COLUMNS = [
     "timestamp",
     "src_ip",
@@ -93,6 +95,42 @@ def _detect_format(data: bytes, reader: Any = None) -> str:
     return "UNKNOWN"
 
 
+def _validate_capture_structure(data: bytes, format_name: str, filename: str) -> None:
+    """Reject incomplete records/blocks that Scapy can treat as normal EOF."""
+    if format_name == "PCAP":
+        endian = "<" if data[:4] in (b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1") else ">"
+        offset = 24
+        while offset < len(data):
+            if len(data) - offset < 16:
+                raise ValueError(f"Corrupt capture file '{filename}': incomplete PCAP record header.")
+            captured_length = struct.unpack_from(endian + "I", data, offset + 8)[0]
+            offset += 16
+            if captured_length > len(data) - offset:
+                raise ValueError(f"Corrupt capture file '{filename}': incomplete PCAP packet data.")
+            offset += captured_length
+    elif format_name == "PCAPNG":
+        offset = 0
+        endian = "<"
+        while offset < len(data):
+            if len(data) - offset < 12:
+                raise ValueError(f"Corrupt capture file '{filename}': incomplete PCAPNG block header.")
+            if data[offset:offset + 4] == b"\x0a\x0d\x0d\x0a":
+                byte_order = data[offset + 8:offset + 12]
+                if byte_order == b"\x1a\x2b\x3c\x4d":
+                    endian = ">"
+                elif byte_order == b"\x4d\x3c\x2b\x1a":
+                    endian = "<"
+                else:
+                    raise ValueError(f"Corrupt capture file '{filename}': invalid PCAPNG byte order.")
+            block_length = struct.unpack_from(endian + "I", data, offset + 4)[0]
+            if block_length < 12 or block_length % 4 or block_length > len(data) - offset:
+                raise ValueError(f"Corrupt capture file '{filename}': invalid PCAPNG block length.")
+            trailer = struct.unpack_from(endian + "I", data, offset + block_length - 4)[0]
+            if trailer != block_length:
+                raise ValueError(f"Corrupt capture file '{filename}': mismatched PCAPNG block lengths.")
+            offset += block_length
+
+
 def _is_icmp(pkt: Any) -> bool:
     """Check if packet contains ICMP or ICMPv6."""
     if pkt.haslayer(ICMP):
@@ -136,7 +174,7 @@ def _extract_dns(pkt: Any) -> tuple[bool, str | None]:
 
 
 def parse_capture_bytes(
-    data: bytes, filename: str, *, max_packets: int = 100_000
+    data: bytes, filename: str, *, max_packets: int = MAX_PACKETS
 ) -> tuple[pd.DataFrame, dict[str, object]]:
     """Parse raw capture bytes into a canonical DataFrame and metadata.
 
@@ -176,6 +214,7 @@ def parse_capture_bytes(
         return _build_empty_dataframe(), metadata
 
     detected_format = _detect_format(data)
+    _validate_capture_structure(data, detected_format, filename)
     bio = io.BytesIO(data)
 
     try:
@@ -198,7 +237,7 @@ def parse_capture_bytes(
     src_ports: list[int | None] = []
     dst_ports: list[int | None] = []
     protocols: list[str] = []
-    transports: list[str | None] = []
+    transports: list[str] = []
     lengths: list[int] = []
     tcp_flags_list: list[str | None] = []
     ip_versions: list[int | None] = []
@@ -257,7 +296,7 @@ def parse_capture_bytes(
             else:
                 src_ports.append(None)
                 dst_ports.append(None)
-                transports.append(None)
+                transports.append("ICMP" if _is_icmp(pkt) else "OTHER")
                 tcp_flags_list.append(None)
 
             # DNS & Protocol classification
@@ -278,12 +317,9 @@ def parse_capture_bytes(
             parsed_packets += 1
 
     except (Scapy_Exception, struct.error, EOFError) as err:
-        if parsed_packets == 0:
-            raise ValueError(
-                f"Corrupt capture file '{filename}': {err}"
-            ) from err
-        # Mid-stream corruption warning if some packets were already read
-        warnings.append(f"Corrupt packet stream encountered after {parsed_packets} packets: {err}")
+        raise ValueError(
+            f"Corrupt capture file '{filename}' after {parsed_packets} packets: {err}"
+        ) from err
     finally:
         try:
             reader.close()
