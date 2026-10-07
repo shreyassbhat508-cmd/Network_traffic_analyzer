@@ -7,3 +7,14 @@ __pycache__/
 htmlcov/
 .DS_Store
 Thumbs.db
+.venv/
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+.next/
+node_modules/
+tsconfig.tsbuildinfo
+.next-env.d.ts
