@@ -1,4 +1,4 @@
-# Network Traffic Analyzer
+# Network Traffic Analyzer   
 
 A Python-based network traffic analysis tool that analyzes PCAP and PCAPNG files to visualize network activity and identify potentially suspicious traffic patterns.
 
@@ -60,4 +60,4 @@ This project is intended for educational purposes and authorized network traffic
 
 ## Contributors
 
-Developed as a hackathon project.
+Developed as a hackathon project by our hackathon team.
