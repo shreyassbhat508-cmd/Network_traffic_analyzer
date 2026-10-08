@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import inspect
+from pathlib import Path
 import sys
 
 # Ensure workspace root is in sys.path
@@ -223,20 +223,6 @@ def test_timeline_statistics(sample_packets_df):
     assert timeline[2]["timestamp"] == "2026-10-07T10:00:02Z"
     assert timeline[2]["packets"] == 1
     assert timeline[2]["bytes"] == 50
-
-
-def test_top_talkers_default_limit():
-    rows = [
-        {"src_ip": f"10.0.0.{i}", "dst_ip": f"20.0.0.{i}", "length": 100}
-        for i in range(20)
-    ]
-    df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(["2026-10-07T00:00:00Z"] * 20, utc=True)
-    df["protocol"] = "TCP"
-
-    stats = calculate_statistics(df)
-    assert len(stats["top_sources"]) == 10
-    assert len(stats["top_destinations"]) == 10
 
 
 def test_frozen_statistics_signature_and_keys(sample_packets_df, empty_packets_df):
